@@ -1,0 +1,438 @@
+#!/bin/sh
+
+# xdgattr (xdgattr version 0.1.0)
+
+#  xdgattr: a tool for editing xdg extended attributes of files
+#  Copyright © 2017 Rowan Thorpe <rowan@rowanthorpe.com>
+#
+#  Any additional contributions are noted in the AUTHORS file.
+#
+#  This file is part of xdgattr.
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+#### Notes to self
+# I used "test x = y" where "test x -eq y" would be more elegant because string-equals is faster than -eq (no coercions)
+
+#### POSIX stuff
+
+test -z "${BASH_VERSION}" || set -o posix
+if test -n "${ZSH_VERSION}"; then
+    setopt shglob
+    setopt bsdecho
+    setopt shwordsplit
+    NULLCMD=':'
+    export NULLCMD
+    emulate sh
+fi
+for _path_elem in /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin; do
+    ! printf '%s' "${PATH}" | grep -q '\(^\|:\)'${_path_elem}'\($\|:\)' || \
+        PATH="${PATH}:${_path_elem}"
+done
+export PATH
+
+#### static functions
+
+report() { printf "${@}" | sed -e "s/^/${script_name}: /" >&2; }
+
+error() { report "${@}" | sed -e 's/: /: ERROR: /'; }
+
+die() { error "${@}"; exit 1; }
+
+die_u() { usage >&2; printf '\n' >&2; die "${@}"; }
+
+esc() { printf "${@}" | sed -e "s/'/'\\\\''/g"; }
+
+quot() { printf "'"; esc "${@}"; printf "'"; }
+
+lhs_esc() { printf '%s%s' "${1}" "${n}" | sed -e 's:[][\/.^$*]:\\&:g'; }
+
+filter_tag() { printf '%s%s' "${1}" "${n}" | sed -e 's/\(^\|,\)'"$(lhs_esc "${2}")"'\($\|,\)/\1\2/' -e 's/^,//' -e 's/,$//'; }
+
+valid_sluglist() { printf '%s\n' "${1}" | grep -q "^${slug_match}\\(,${slug_match}\\)*\$"; }
+
+valid_utf8() { printf '%s\n' "${1}" | iconv -f utf8 >/dev/null 2>&1; }
+
+usage() {
+    cat <<EOF
+Usage: ${script_name} -h|--help
+  or:  ${script_name} ACTION [OPTIONS] FIELD FILE [VALUE]
+
+A tool for editing freedesktop.org (xdg) extended attributes of files.
+
+ACTION:
+ get          : get the field's value
+ set          : set the field to the value
+ append       : append the value to the field
+ prepend      : prepend the value to the field
+ remove       : remove the value from the field (only for "tags")
+ delete       : delete the field
+ search       : search recursively for fields matching the string
+ search-regex : search recursively for fields matching the sed-regex
+
+OPTIONS:
+ -n, --dryrun : display the commands rather than evaluating them
+ -v, --verbose: more output
+ -a, --args   : extra custom-args to pass to the underlying command
+
+FIELD:
+ tags    : set/get/delete/match the user.xdg.tags attribute
+ comment : set/get/delete/match the user.xdg.comment attribute
+ all     : tags + comments attributes (only for "get", "delete", "search",
+           "search-regex")
+
+FILE:
+ /*   : absolute file path as specified
+ :*   : file path relative to "${xdgattr_dir}"
+ *    : file path relative to \$(pwd)
+
+VALUE:
+ Values must not include nulls (\\0), "comment" values can be any valid
+ UTF-8 string, "tags" values are comma-separated slug-strings which match
+ '^[a-z][a-z0-9_]\+$'
+
+GOTCHAS:
+ Unfortunately the {g,s}etfattr tools have a not-very-scripting-friendly
+ output format. Non-printable characters are converted to octal (e.g.
+ [newline] -> '\\012'), but all "printable" characters aren't, even odd
+ ones like "$(printf '\001')" (\\001). This means, for example, you must "search"
+ for a newline using the octal encoding "\\012" (and "search-regex" for "\\\\012")
+ but for obscure "printable" characters like "$(printf '\001')" you must "search" and
+ "search-regex" for "$(printf '\001')". The best solution for searching obscure
+ "printable" characters is to use e.g. "\$(printf '\\001')", because moving
+ the selective encoding/decoding complexity into the tool would bloat the
+ code a lot and would make it much more fragile to updates of the underlying
+ tools.
+
+Examples:
+
+\$ ${script_name} get tags :test1.txt
+tag1,tag2
+\$ ${script_name} prepend tags :test1.txt tag3
+\$ ${script_name} get tags :test1.txt
+tag3,tag1,tag2
+\$ ${script_name} remove tags :test1.txt tag1
+\$ ${script_name} get tags :test1.txt
+tag3,tag2
+\$ ${script_name} get comment :test1.txt
+test comment
+\$ ${script_name} append comment :test1.txt ' & another one'
+\$ ${script_name} get comment :test1.txt
+test comment & another one
+\$ ${script_name} search tags : 'a'
+/home/rowan/xdgattr/blah/test2.txt:tags=bananas
+/home/rowan/xdgattr/test1.txt:tags=tag3,tag1,tag2
+\$ ${script_name} search-regex all : .
+/home/rowan/xdgattr/blurgh/test3.txt:tags=cherries
+/home/rowan/xdgattr/blurgh/test4.txt:tags=turnips,cheese
+/home/rowan/xdgattr/blah/test2.txt:tags=bananas
+/home/rowan/xdgattr/test1.txt:tags=tag3,tag1,tag2
+/home/rowan/xdgattr/test1.txt:comment=test comment & another one
+\$ ${script_name} set comment :test5.txt "multiline comment
+with a strange character \$(printf '\\001')"
+\$ ${script_name} search all : "\$(printf '\\001')"
+/home/rowan/xdgattr/test5.txt:comment:multiline comment\012with a strange character $(printf '\001')
+\$ ${script_name} search all : '\\012'
+/home/rowan/xdgattr/test5.txt:comment:multiline comment\012with a strange character $(printf '\001')
+EOF
+}
+
+#### global vars
+
+xdgattr_dir=${xdgattr_dir:-~/xdgattr}
+os_type="$(uname -s | tr '[[:upper:]]' '[[:lower:]]')"
+test -n "${os_type}" || os_type='linux'
+script_name="$(basename "${0}")"
+slug_match='[a-z][a-z0-9_]\+'
+
+#### system-specific vars
+
+case "${os_type}" in
+    linux)
+        set_a='setfattr --no-dereference'
+        get_a='getfattr --no-dereference --absolute-names --encoding=text'
+        ;;
+    *)
+        die 'OS type "%s" not supported yet.\n' "${os_type}"
+        ;;
+esac
+
+#### action type
+
+case "${1}" in
+    usage|help|--usage|-h|--help)
+        usage
+        exit 0
+        ;;
+    get|set|append|prepend|remove|delete|search|search-regex)
+        action_type="${1}"
+        shift
+        ;;
+    *)
+        die_u 'Invalid action type argument "%s" specified.\n' "${1}"
+        ;;
+esac
+
+#### optflags
+
+dry_run=0
+verbose=0
+args=''
+while ! test ${#} = 0; do
+    case "${1}" in
+        --usage|-h|--help)
+            usage
+            exit 0
+            ;;
+        -n|--dryrun)
+            dry_run=1
+            shift
+            ;;
+        -v|--verbose)
+            verbose=1
+            shift
+            ;;
+        -a|--args)
+            args=" ${2}"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            die_u 'Unrecognised option "%s".\n' "${1}"
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+#### field type
+
+case "${1}" in
+    tags|comment|all)
+        field_type="${1}"
+        shift
+        ;;
+    *)
+        die_u 'Invalid field type argument "%s" specified.\n' "${1}"
+        ;;
+esac
+
+#### action/field sanity checks
+
+! test 'remove' = "${action_type}" || test 'tags' = "${field_type}" || \
+    die_u '"remove" action type is only meaningful for "tags" field type.\n'
+if test 'all' = "${field_type}"; then
+    case "${action_type}" in
+        get|delete|search|search-regex)
+            field_type='tags comment'
+            ;;
+        *)
+            die_u '"all" field type is only meaningful with "get", "delete", "search", and "search-regex" action types.\n'
+            ;;
+    esac
+fi
+
+#### file name
+
+test -n "${1}" || die_u 'File name not specified.\n'
+file_name="${1}"
+shift
+case "${file_name}" in
+    /*)
+        file_path="${file_name}"
+        ;;
+    :*)
+        file_name="${file_name#:}"
+        case "${action_type}" in
+            search|search-regex)
+                :
+                ;;
+            *)
+                test -n "${file_name}" || die_u 'File name not specified.\n'
+                ;;
+        esac
+        file_path="${xdgattr_dir}/${file_name}"
+        ;;
+    *)
+        file_path="$(pwd)/${file_name}"
+        ;;
+esac
+
+#### value arg
+
+case "${action_type}" in
+    get|delete)
+        :
+        ;;
+    *)
+        test -n "${1}" || die_u 'Value not specified.\n'
+        value_arg="${1}"
+        shift
+        ! printf '%s\n' "${value_arg}" | od -A n -t x1 -w1 -v | grep -q '00' || die_u 'Value must not contain null character.\n'
+        case "${action_type}:${field_type}" in
+            search-regex:tags)
+                    valid_utf8 "${value_arg}"
+                    ;;
+            *:tags)
+                    valid_sluglist "${value_arg}"
+                    ;;
+            *)
+                    valid_utf8 "${value_arg}"
+                    ;;
+        esac || die_u 'Value has an invalid format for action type "%s" and field_type "%s".\n' "${action_type}" "${field_type}"
+        ;;
+esac
+
+#### locking vars
+
+case "${action_type}" in
+    search|search-regex)
+        : # each extended attribute read operation is guaranteed atomic so locking not needed here
+        ;;
+    *)
+        case "${action_type}" in
+            get)
+                lock_type='s'
+                can_lock="test 0 = \${locked_x}"
+                ;;
+            *)
+                lock_type='x'
+                can_lock="test 00 = \${locked_x}\${locked_s}"
+                ;;
+        esac
+        case "${os_type}" in
+            linux)
+                get_lock_s_state='$('"${get_a}"' --name=user.xdg.lock_s --only-values '"$(quot "${file_path}")"' 2>/dev/null || printf 0)'
+                get_lock_x_state='$('"${get_a}"' --name=user.xdg.lock_x --only-values '"$(quot "${file_path}")"' 2>/dev/null || printf 0)'
+                if test ${lock_type} = s; then
+                    new_lock_val='$(expr ${locked_s} + 1)'
+                    release_lock="${set_a}"' --name=user.xdg.lock_'${lock_type}' --value=$(expr '"${get_lock_s_state}"' - 1) '"$(quot "${file_path}")"
+                else
+                    new_lock_val=1
+                    release_lock="${set_a}"' --remove=user.xdg.lock_'${lock_type}' '"$(quot "${file_path}")"
+                fi
+                obtain_lock="${set_a}"' --name=user.xdg.lock_'${lock_type}' --value='"${new_lock_val}"' '"$(quot "${file_path}")"
+                ;;
+        esac
+        ;;
+esac
+
+#### build to_eval string
+
+to_eval="test -e $(quot "${file_path}") || die $(quot "Specified file at $(quot "${file_path}") does not exist.\\\\n")
+"
+case "${action_type}" in
+    search|search-regex)
+        :
+        ;;
+    *)
+        to_eval="\
+${to_eval}locked_s=${get_lock_s_state} && \\
+locked_x=${get_lock_x_state} || die $(quot "Failed to get present lock-state from file $(quot "${file_path}").\\\\n")
+${can_lock} || die $(quot "File $(quot "${file_path}") is already locked.\\\\n")
+${obtain_lock} || die $(quot "Failed to get lock for file $(quot "${file_path}").\\\\n")
+trap $(quot "${release_lock} || error $(quot "Failed to release lock for file $(quot "${file_path}").\\\\\\\\n")") EXIT
+"
+        ;;
+esac
+for each_field_type in ${field_type}; do
+
+    #### build modified value
+
+    case "${action_type}" in
+        set)
+            modified_value="${value_arg}"
+            ;;
+        append|prepend|remove)
+            modified_value="$(eval "${get_a} --name=user.xdg.${each_field_type} --only-values $(quot "${file_path}") 2>/dev/null || :")"
+            case "${each_field_type}" in
+                tags)
+                    delim=','
+                    for each_tag in $(printf '%s\n' "${value_arg}" | sed -e 's/,/ /g'); do
+                        # NB: (removal is sensible only for tags)
+                        #  remove ${value_arg} if already present for "append" or "prepend", so new one won't duplicate it
+                        modified_value="$(filter_tag "${modified_value}" "${each_tag}")"
+                    done
+                    ;;
+                *)
+                    delim=''
+                    ;;
+            esac
+            case "${action_type}" in
+                append)
+                    modified_value="${modified_value}${modified_value:+${delim}}${value_arg}"
+                    ;;
+                prepend)
+                    modified_value="${value_arg}${modified_value:+${delim}}${modified_value}"
+                    ;;
+            esac
+            ;;
+    esac
+
+    #### append to to_eval string
+
+    case "${action_type}" in
+        get)
+            to_eval="${to_eval}${get_a} --name=user.xdg.${each_field_type} --only-values${args} $(quot "${file_path}")"
+            ;;
+        set|append|prepend|remove)
+            to_eval="${to_eval}${set_a} --name=user.xdg.${each_field_type} --value=\"${modified_value}\"${args} $(quot "${file_path}")"
+            ;;
+        delete)
+            to_eval="${to_eval}${set_a} --remove=user.xdg.${each_field_type}${args} $(quot "${file_path}")"
+            ;;
+        search|search-regex)
+            if test 'search-regex' = "${action_type}"; then
+                match="${value_arg}"
+            else
+                match="$(lhs_esc "${value_arg}")"
+            fi
+            to_eval="${to_eval}\
+${get_a} --recursive --physical --name=user.xdg.${each_field_type}${args} $(quot "${xdgattr_dir}") 2>/dev/null | \
+sed -n \
+-e 's/^# file: //' \
+-e 't Y' \
+-e 'b' \
+-e ': Y' \
+-e 'x' \
+-e 'n' \
+-e 's/^user\\.xdg\\.${each_field_type}=\"//' \
+-e 's/\"\$//' \
+-e '/${match}/! b' \
+-e 's/^/:${each_field_type}:/' \
+-e 'H' \
+-e 'x' \
+-e 's/\\n//' \
+-e 'p'\
+"
+            ;;
+    esac
+    to_eval="${to_eval} || die $(quot "Failed to apply action-type \"${action_type}\" to field-type \"${each_field_type}\" for file $(quot "${file_path}").\\\\n")
+"
+
+done
+
+#### output or eval commands
+
+if test 1 = ${dry_run}; then
+    printf '%s\n' "$to_eval"
+else
+    test 0 = ${verbose} || \
+        report '%s\n' "$to_eval"
+    eval "${to_eval}"
+fi

@@ -1,0 +1,7 @@
+# copy this to ~/.recoll/fields
+
+[xattrtofields]
+xdg.tags = keywords
+xdg.comment = abstract
+mime_type =
+charset =
