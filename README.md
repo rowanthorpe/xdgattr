@@ -24,6 +24,7 @@ License
 -------
 
 Copyright © 2017 Rowan Thorpe <rowan@rowanthorpe.com>
+
 xdgattr uses the GPLv3 license, check the COPYING file.
 
 Rationale
