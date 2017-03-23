@@ -67,9 +67,15 @@ valid_utf8() { printf '%s\n' "${1}" | iconv -f utf8 >/dev/null 2>&1; }
 usage() {
     cat <<EOF
 Usage: ${script_name} -h|--help
-  or:  ${script_name} ACTION [OPTIONS] [--] FIELD FILE [VALUE]
+  or:  ${script_name} [OPTIONS] [--] ACTION FIELD FILE [VALUE]
 
 A tool for editing freedesktop.org (xdg) extended attributes of files.
+
+OPTIONS:
+ -h, --help, --usage : this text
+ -n, --dryrun        : display the commands rather than evaluating them
+ -v, --verbose       : more output
+ -a, --args XX       : extra custom-args to pass to the underlying command
 
 ACTION:
  help, usage  : this text
@@ -81,11 +87,6 @@ ACTION:
  delete       : delete the field
  search       : search recursively for fields matching the value as a string
  search-regex : search recursively for fields matching the value as a sed-regex
-
-OPTIONS:
- -n, --dryrun : display the commands rather than evaluating them
- -v, --verbose: more output
- -a, --args XX: extra custom-args to pass to the underlying command
 
 FIELD:
  tags    : act on the user.xdg.tags attribute
@@ -169,22 +170,6 @@ case "${os_type}" in
         ;;
 esac
 
-#### action type
-
-case "${1}" in
-    usage|help|--usage|-h|--help)
-        usage
-        exit 0
-        ;;
-    get|set|append|prepend|remove|delete|search|search-regex)
-        action_type="${1}"
-        shift
-        ;;
-    *)
-        die_u 'Invalid action type argument "%s" specified.\n' "${1}"
-        ;;
-esac
-
 #### optflags
 
 dry_run=0
@@ -220,6 +205,22 @@ while ! test ${#} = 0; do
             ;;
     esac
 done
+
+#### action type
+
+case "${1}" in
+    usage|help)
+        usage
+        exit 0
+        ;;
+    get|set|append|prepend|remove|delete|search|search-regex)
+        action_type="${1}"
+        shift
+        ;;
+    *)
+        die_u 'Invalid action type argument "%s" specified.\n' "${1}"
+        ;;
+esac
 
 #### field type
 
