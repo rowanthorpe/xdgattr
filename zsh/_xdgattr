@@ -2,7 +2,7 @@
 
 # NB:
 #  This completions file needs more work, but I didn't have time to drill down more (see the TODO
-#  file for the things I didn't get to. Shell-completion is opaque, strangely documented, and has
+#  file for the things I didn't get to). Shell-completion is opaque, strangely documented, and has
 #  a bizarre and unpredictable learning-curve way out of proportion with the reward of getting
 #  one fully working </rant>. Any help from zsh-completion gurus would be much appreciated, as I
 #  have done enough hair-pulling for one lifetime.
