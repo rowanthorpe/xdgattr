@@ -14,8 +14,7 @@ Quick Start
 -----------
 
 * Copy xdgattr to somewhere in your `$PATH`
-* Install auto-complete files to the appropriate location for your shell if you
-  want (once they've been created - TODO)
+* Install completion files to the appropriate location for your shell if you want
 * Run `xdgattr --help` for details
 * For integration with `recoll` copy the info from the /recoll subdirectory to
   the appropriate places

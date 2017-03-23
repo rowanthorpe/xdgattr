@@ -1,7 +1,15 @@
 ## TODO
 
 ## for v0.2:
-* add BASH & ZSH autocomplete files
+* add BASH completion file
+* improve ZSH completion file:
+  - File-completion for starting-with-colon syntax could list files relative to xdgattr $base_dir (but
+    retain the leading ":")
+  - Value-completion for "remove tags" could be a function to complete a comma-separated list of
+    existing tags/comments in the file using:
+      "_multi_parts , [array-of-tags-and-taglists]"?,
+      "_sequence ..."?,
+      "_values -s , ..."?
 
 ## for v0.3:
 * add more field_types from xdg specs, see:

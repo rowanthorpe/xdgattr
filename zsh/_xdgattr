@@ -1,0 +1,66 @@
+#compdef xdgattrs
+
+# NB:
+#  This completions file needs more work, but I didn't have time to drill down more (see the TODO
+#  file for the things I didn't get to. Shell-completion is opaque, strangely documented, and has
+#  a bizarre and unpredictable learning-curve way out of proportion with the reward of getting
+#  one fully working </rant>. Any help from zsh-completion gurus would be much appreciated, as I
+#  have done enough hair-pulling for one lifetime.
+
+_xdgattr() {
+  local context line
+  typeset -A opt_args
+
+  local help='--usage -h --help' action_action field_action file_action value_action
+  typeset -a opts actions fields
+
+  opts=(
+    "(${help} -n --dryrun -v --verbose -a --args 1 2 3 4)"{--usage,-h,--help}'[help message.]'
+    "(${help} -n --dryrun)"{-n,--dryrun}'[display the commands rather than evaluating them.]'
+    "(${help} -v --verbose)"{-v,--verbose}'[more output.]'
+    "(${help} -a --args)"{-a,--args}'[extra custom-args to pass to the underlying command.]:ARGS:'
+  )
+  actions=(
+    {usage,help}'\:"help message."'
+    'get\:"get the field'\''s value."'
+    'set\:"set the field to the value."'
+    'append\:"append the value to the field."'
+    'prepend\:"prepend the value to the field."'
+    'remove\:"remove the value from the field (only for \"tags\")."'
+    'delete\:"delete the field."'
+    'search\:"search recursively for fields matching the value as a string."'
+    'search-regex\:"search recursively for fields matching the value as a sed-regex."'
+  )
+  action_action="((${actions[*]}))"
+  case "${words[2]}" in
+    usage|help)
+      field_action='_message "no more arguments"'
+      file_action='_message "no more arguments"'
+      value_action='_message "no more arguments"'
+      ;;
+    *)
+      fields=('tags\:"act on the user.xdg.tags attribute."')
+      case "${words[2]}" in
+        remove)
+          : ;;
+        *)
+          fields+=('comment\:"act on the user.xdg.comment attribute."')
+          case "${words[2]}" in
+            get|set|append|prepend)
+              : ;;
+            *)
+              fields+=('all\:"act on all recognised xdg attributes."')
+              ;;
+          esac
+          ;;
+      esac
+      field_action="((${fields[*]}))"
+      file_action='_files'
+      value_action='_message "no completions"'
+      ;;
+  esac
+
+  _arguments -S : "${opts[@]}" ":Action:${action_action}" ":Field:${field_action}" ":File:${file_action}" ":Value:${value_action}"
+}
+
+_xdgattr "${@}"
