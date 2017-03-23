@@ -154,7 +154,7 @@ xdgattr_dir=${xdgattr_dir:-~/xdgattr}
 os_type="$(uname -s | tr '[[:upper:]]' '[[:lower:]]')"
 test -n "${os_type}" || os_type='linux'
 script_name="$(basename "${0}")"
-slug_match='[a-z][a-z0-9_]\+'
+slug_match='[a-z][a-z0-9_]*'
 
 #### system-specific vars
 
