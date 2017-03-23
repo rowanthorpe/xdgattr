@@ -60,7 +60,7 @@ _xdgattr() {
       ;;
   esac
 
-  _arguments -S : "${opts[@]}" ":Action:${action_action}" ":Field:${field_action}" ":File:${file_action}" ":Value:${value_action}"
+  _arguments -S -A '-*' : "${opts[@]}" ":Action:${action_action}" ":Field:${field_action}" ":File:${file_action}" ":Value:${value_action}"
 }
 
 _xdgattr "${@}"
