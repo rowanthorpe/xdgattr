@@ -67,30 +67,31 @@ valid_utf8() { printf '%s\n' "${1}" | iconv -f utf8 >/dev/null 2>&1; }
 usage() {
     cat <<EOF
 Usage: ${script_name} -h|--help
-  or:  ${script_name} ACTION [OPTIONS] FIELD FILE [VALUE]
+  or:  ${script_name} ACTION [OPTIONS] [--] FIELD FILE [VALUE]
 
 A tool for editing freedesktop.org (xdg) extended attributes of files.
 
 ACTION:
+ help, usage  : this text
  get          : get the field's value
  set          : set the field to the value
  append       : append the value to the field
  prepend      : prepend the value to the field
  remove       : remove the value from the field (only for "tags")
  delete       : delete the field
- search       : search recursively for fields matching the string
- search-regex : search recursively for fields matching the sed-regex
+ search       : search recursively for fields matching the value as a string
+ search-regex : search recursively for fields matching the value as a sed-regex
 
 OPTIONS:
  -n, --dryrun : display the commands rather than evaluating them
  -v, --verbose: more output
- -a, --args   : extra custom-args to pass to the underlying command
+ -a, --args XX: extra custom-args to pass to the underlying command
 
 FIELD:
- tags    : set/get/delete/match the user.xdg.tags attribute
- comment : set/get/delete/match the user.xdg.comment attribute
- all     : tags + comments attributes (only for "get", "delete", "search",
-           "search-regex")
+ tags    : act on the user.xdg.tags attribute
+ comment : act on the user.xdg.comment attribute
+ all     : act on all recognised xdg attributes (only for "get", "delete",
+           "search", "search-regex")
 
 FILE:
  /*   : absolute file path as specified
