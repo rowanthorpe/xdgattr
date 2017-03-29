@@ -18,7 +18,6 @@ TODO
         * https://www.freedesktop.org/wiki/CommonExtendedAttributes/#relationtodublincore
 
 * for ~v0.9:
-    * find even less race-y way to lock files using xattr-locks, if even possible?
     * adding $KSH_VERSION to the 'set -o posix' test works for pdksh but kills ksh - find how to distinguish between those two shells
 
 * for ~v1.5:
