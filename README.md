@@ -10,6 +10,9 @@ and to be mounted with the appropriate option. Beware that on most platforms if
 you `mv`/`cp`/`tar` the files to a non-xattr-capable filesystem/archive the
 xattrs will be silently dropped.
 
+This is most useful for (but not restricted to) building a "bottom-up
+non-hierarchical" tagging system for files.
+
 Quick Start
 -----------
 
