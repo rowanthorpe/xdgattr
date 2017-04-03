@@ -27,9 +27,9 @@ License
 
 Copyright © 2017 Rowan Thorpe <rowan@rowanthorpe.com>
 
-`xdgattr` uses the GPLv3 license, check the COPYING file.
+`xdgattr` uses the GPLv3 license, check the `COPYING` file.
 
-Any additional contributions are noted in the AUTHORS.md file.
+Any additional contributions are noted in the `AUTHORS.md` file.
 
 Rationale
 ---------
@@ -92,5 +92,5 @@ on I will migrate it to a more performant and robust language/bindings.
 Personally, I use it for tagging files only within a specific directory
 (pointed to by the $xdgattr_dir var, which can be edited in the script or
 overridden by environment-variable), accessing all files there using the
-":/dir/dir/file" syntax, and only allowing recoll to index that directory - and
+`:/dir/dir/file` syntax, and only allowing recoll to index that directory - and
 of course ensuring that directory is on a xattr-enabled filesystem.
