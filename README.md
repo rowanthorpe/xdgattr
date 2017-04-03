@@ -16,7 +16,7 @@ non-hierarchical" tagging system for files.
 Quick Start
 -----------
 
-* Copy xdgattr to somewhere in your `$PATH`
+* Copy `xdgattr` to somewhere in your `$PATH`
 * Install completion files to the appropriate location for your shell if you want
 * Run `xdgattr --help` for details
 * For integration with `recoll` copy the info from the /recoll subdirectory to
@@ -27,7 +27,7 @@ License
 
 Copyright © 2017 Rowan Thorpe <rowan@rowanthorpe.com>
 
-xdgattr uses the GPLv3 license, check the COPYING file.
+`xdgattr` uses the GPLv3 license, check the COPYING file.
 
 Any additional contributions are noted in the AUTHORS.md file.
 
